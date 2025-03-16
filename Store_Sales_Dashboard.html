@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Performance Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .container {
+            width: 90%;
+            margin: auto;
+        }
+        .chart-container {
+            width: 100%;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Interactive Sales Performance Dashboard</h2>
+
+    <input type="file" id="fileInput" accept=".json">
+    <div class="container">
+        <div id="revenueChart" class="chart-container"></div>
+        <div id="categoryChart" class="chart-container"></div>
+        <div id="channelChart" class="chart-container"></div>
+        <div id="demographicsChart" class="chart-container"></div>
+        <div id="locationChart" class="chart-container"></div>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const jsonData = JSON.parse(e.target.result);
+                    generateDashboard(jsonData);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function generateDashboard(data) {
+            console.log("Loaded Data:", data);
+
+            // Convert date format
+            let salesByDate = {};
+            let categorySales = {};
+            let channelSales = {};
+            let ageGroups = {};
+            let locations = [];
+
+            data.forEach(order => {
+                let date = order.Date;
+                salesByDate[date] = (salesByDate[date] || 0) + order.Amount;
+                
+                categorySales[order.Category] = (categorySales[order.Category] || 0) + order.Amount;
+
+                channelSales[order.Channel] = (channelSales[order.Channel] || 0) + order.Amount;
+
+                let ageGroup = Math.floor(order.Age / 10) * 10 + "s";
+                ageGroups[ageGroup] = (ageGroups[ageGroup] || 0) + 1;
+
+                locations.push({
+                    city: order["ship-city"],
+                    state: order["ship-state"],
+                    amount: order.Amount,
+                    lat: getRandomLat(order["ship-state"]),
+                    lon: getRandomLon(order["ship-state"])
+                });
+            });
+
+            // Sales Revenue Trend (Line Chart)
+            Plotly.newPlot('revenueChart', [{
+                x: Object.keys(salesByDate),
+                y: Object.values(salesByDate),
+                type: 'scatter',
+                mode: 'lines+markers',
+                marker: { color: 'blue' }
+            }], { title: 'Sales Revenue Trend', xaxis: { title: 'Date' }, yaxis: { title: 'Revenue (INR)' } });
+
+            // Sales by Category (Bar Chart)
+            Plotly.newPlot('categoryChart', [{
+                x: Object.keys(categorySales),
+                y: Object.values(categorySales),
+                type: 'bar',
+                marker: { color: 'orange' }
+            }], { title: 'Sales by Category', xaxis: { title: 'Category' }, yaxis: { title: 'Revenue (INR)' } });
+
+            // Sales by Channel (Pie Chart)
+            Plotly.newPlot('channelChart', [{
+                labels: Object.keys(channelSales),
+                values: Object.values(channelSales),
+                type: 'pie'
+            }], { title: 'Sales by Channel' });
+
+            // Customer Demographics (Histogram)
+            Plotly.newPlot('demographicsChart', [{
+                x: Object.keys(ageGroups),
+                y: Object.values(ageGroups),
+                type: 'bar',
+                marker: { color: 'green' }
+            }], { title: 'Customer Age Distribution', xaxis: { title: 'Age Group' }, yaxis: { title: 'Number of Customers' } });
+
+            // Sales by Location (Geospatial Heatmap)
+            Plotly.newPlot('locationChart', [{
+                type: 'scattermapbox',
+                mode: 'markers',
+                lon: locations.map(loc => loc.lon),
+                lat: locations.map(loc => loc.lat),
+                marker: { size: locations.map(loc => loc.amount / 50), color: 'red' },
+                text: locations.map(loc => `${loc.city}, ${loc.state} - ₹${loc.amount}`)
+            }], {
+                title: 'Sales by Location',
+                mapbox: { style: 'open-street-map', center: { lat: 22.5, lon: 80.0 }, zoom: 4 }
+            });
+        }
+
+        // Generate random lat/lon (For demonstration, real implementation should use proper geolocation mapping)
+        function getRandomLat(state) {
+            let latitudes = {
+                "PUNJAB": 30.9, "HARYANA": 29.1, "WEST BENGAL": 22.5, "TAMIL NADU": 11.1, 
+                "MAHARASHTRA": 19.0, "KARNATAKA": 12.9, "ANDHRA PRADESH": 15.9, "KERALA": 10.8
+            };
+            return latitudes[state] || 22.5;
+        }
+
+        function getRandomLon(state) {
+            let longitudes = {
+                "PUNJAB": 75.8, "HARYANA": 76.7, "WEST BENGAL": 88.3, "TAMIL NADU": 78.7, 
+                "MAHARASHTRA": 73.8, "KARNATAKA": 77.6, "ANDHRA PRADESH": 79.7, "KERALA": 76.2
+            };
+            return longitudes[state] || 80.0;
+        }
+    </script>
+</body>
+</html>
